@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Advanced Calculator with Fixed Top-Right History</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+<style>
+  body {
+    font-family: 'Poppins', sans-serif;
+    margin: 0; padding: 0;
+    background-color: #f5f5f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    transition: background-color 0.3s ease;
+  }
+  .dark-theme { background-color: #121212; }
+  .calculator-container {
+    background: #e3f2fd;
+    border-radius: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    width: 320px; padding: 20px;
+    display: flex; flex-direction: column; gap: 15px;
+  }
+  .dark-theme .calculator-container { background: #36393f; color: white; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: center; }
+  .header button {
+    background: #e0e0e5; border: none;
+    border-radius: 50%;
+    padding: 6px 12px; font-size: 1.3rem; cursor: pointer;
+  }
+  .dark-theme .header button { background: #4a4a50; color: white; }
+
+  /* Display */
+  .display-container {
+    background: #f8f8f8; border-radius: 15px; padding: 15px; text-align: right;
+  }
+  .dark-theme .display-container { background: #1c1c1c; }
+  .history-display {
+    font-size: 0.9rem; color: #888; border: none;
+    background: none; width: 100%; margin-bottom: 5px;
+  }
+  .dark-theme .history-display { color: #bbb; }
+  .main-display {
+    font-size: 2.5rem; font-weight: 600; border: none;
+    background: none; width: 100%; color: #333;
+  }
+  .dark-theme .main-display { color: #eee; }
+
+  /* Keypad */
+  .keypad { display: flex; gap: 10px; }
+  .basic-keypad, .scientific-keypad { display: grid; gap: 10px; flex-grow: 1; }
+  .basic-keypad { grid-template-columns: repeat(4, 1fr); }
+  .scientific-keypad { grid-template-columns: repeat(5, 1fr); }
+  .scientific-keypad.hidden { display: none; }
+  button.btn {
+    padding: 18px; border-radius: 15px; border: none;
+    font-size: 1.2rem; font-weight: 600;
+    cursor: pointer; background: #f0f0f5; color: #444;
+  }
+  .dark-theme .btn { background: #4a4a50; color: #e0e0e0; }
+  .btn-operator, .btn-equals, .btn-memory { background: #ff7e5f; color: white; }
+  .dark-theme .btn-operator, .dark-theme .btn-equals, .dark-theme .btn-memory { background: #e94e77; }
+  .btn-clear, .btn-backspace { background: #ff5f5f; color: white; }
+  .dark-theme .btn-clear, .dark-theme .btn-backspace { background: #d53a47; }
+  .btn-sci { background: #c3aed6; color: white; }
+  .dark-theme .btn-sci { background: #8e68b3; }
+  .btn-zero { grid-column: span 2; }
+
+  /* Fixed History */
+  .history-panel {
+    position: fixed; top: 20px; right: 20px;
+    background: #e3f2fd; width: 300px; max-height: 60vh;
+    border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    padding: 15px; overflow-y: auto;
+    display: none; flex-direction: column;
+  }
+  .history-panel.show { display: flex; }
+  .dark-theme .history-panel { background: #36393f; color: #e0e0e0; }
+  .history-panel h3 { margin: 0 0 10px; font-size: 1.2rem; }
+  #history-list { list-style: none; padding: 0; margin: 0; }
+  #history-list li {
+    background: #f0f0f5; border-radius: 8px;
+    padding: 8px 10px; margin-bottom: 6px; cursor: pointer;
+  }
+  .dark-theme #history-list li { background: #4a4a50; color: #e0e0e0; }
+  .empty-history { color: #888; text-align: center; }
+  #clear-history-btn {
+    margin-top: 10px; background: #ff5f5f; border: none;
+    border-radius: 10px; padding: 10px 0;
+    font-weight: 600; color: white; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div class="calculator-container">
+  <div class="header">
+    <button id="theme-btn">🌙</button>
+    <button id="mode-btn">Sci</button>
+    <button id="history-btn">📄</button>
+  </div>
+  <div class="display-container">
+    <input type="text" id="history-display" class="history-display" readonly />
+    <input type="text" id="main-display" class="main-display" value="0" readonly />
+  </div>
+  <div class="keypad">
+    <div class="basic-keypad">
+      <button class="btn btn-clear">C</button>
+      <button class="btn btn-operator" data-value="(">(</button>
+      <button class="btn btn-operator" data-value=")">)</button>
+      <button class="btn btn-backspace">←</button>
+
+      <button class="btn btn-number" data-value="7">7</button>
+      <button class="btn btn-number" data-value="8">8</button>
+      <button class="btn btn-number" data-value="9">9</button>
+      <button class="btn btn-operator" data-value="/">/</button>
+
+      <button class="btn btn-number" data-value="4">4</button>
+      <button class="btn btn-number" data-value="5">5</button>
+      <button class="btn btn-number" data-value="6">6</button>
+      <button class="btn btn-operator" data-value="*">*</button>
+
+      <button class="btn btn-number" data-value="1">1</button>
+      <button class="btn btn-number" data-value="2">2</button>
+      <button class="btn btn-number" data-value="3">3</button>
+      <button class="btn btn-operator" data-value="-">-</button>
+
+      <button class="btn btn-number btn-zero" data-value="0">0</button>
+      <button class="btn btn-decimal" data-value=".">.</button>
+      <button class="btn btn-operator" data-value="+">+</button>
+      <button class="btn btn-equals" data-value="=">=</button>
+    </div>
+    <div class="scientific-keypad hidden">
+      <button class="btn btn-sci" data-value="sin">sin</button>
+      <button class="btn btn-sci" data-value="cos">cos</button>
+      <button class="btn btn-sci" data-value="tan">tan</button>
+      <button class="btn btn-sci" data-value="log">log</button>
+      <button class="btn btn-sci" data-value="ln">ln</button>
+      <button class="btn btn-sci" data-value="x^2">x²</button>
+      <button class="btn btn-sci" data-value="x^3">x³</button>
+      <button class="btn btn-sci" data-value="sqrt">√</button>
+      <button class="btn btn-sci" data-value="!">n!</button>
+      <button class="btn btn-sci" data-value="PI">π</button>
+      <button class="btn btn-sci" data-value="E">e</button>
+      <button class="btn btn-memory" data-value="M+">M+</button>
+      <button class="btn btn-memory" data-value="M-">M-</button>
+      <button class="btn btn-memory" data-value="MR">MR</button>
+      <button class="btn btn-memory" data-value="MC">MC</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fixed History Panel -->
+<div class="history-panel" id="history-panel">
+  <h3>History</h3>
+  <ul id="history-list">
+    <li class="empty-history">No calculations done yet.</li>
+  </ul>
+  <button id="clear-history-btn">Clear History</button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const mainDisplay = document.getElementById('main-display');
+  const historyDisplay = document.getElementById('history-display');
+  const themeBtn = document.getElementById('theme-btn');
+  const modeBtn = document.getElementById('mode-btn');
+  const historyBtn = document.getElementById('history-btn');
+  const scientificKeypad = document.querySelector('.scientific-keypad');
+  const keypad = document.querySelector('.keypad');
+  const historyPanel = document.getElementById('history-panel');
+  const historyList = document.getElementById('history-list');
+  const clearHistoryBtn = document.getElementById('clear-history-btn');
+
+  let currentExpression = '';
+  let isNewOperation = true;
+  let isScientificMode = false;
+  let memory = 0;
+  let history = JSON.parse(localStorage.getItem('calculatorHistory')) || [];
+
+  function init() {
+    mainDisplay.value = '0';
+    updateHistoryPanel();
+  }
+
+  function updateMainDisplay(value) {
+    mainDisplay.value = value.length > 15 ? Number(value).toExponential(8) : value;
+  }
+
+  function handleInput(value) {
+    if (isNewOperation) {
+      currentExpression = value;
+      isNewOperation = false;
+    } else {
+      currentExpression += value;
+    }
+    historyDisplay.value = currentExpression;
+    updateMainDisplay(currentExpression);
+  }
+
+  function calculate() {
+    if (!currentExpression) return;
+    try {
+      const expression = currentExpression
+        .replace(/π/g, 'Math.PI')
+        .replace(/e/g, 'Math.E')
+        .replace(/x²/g, '**2')
+        .replace(/x³/g, '**3')
+        .replace(/√/g, 'Math.sqrt');
+      let result = new Function('return ' + expression)();
+      if (isNaN(result) || !isFinite(result)) throw new Error();
+      saveToHistory(`${currentExpression} =`, result);
+      updateMainDisplay(result.toString());
+      isNewOperation = true;
+    } catch {
+      updateMainDisplay('Error');
+      historyDisplay.value = '';
+      isNewOperation = true;
+    }
+  }
+
+  function handleScientific(func) {
+    const num = parseFloat(currentExpression);
+    if (isNaN(num)) return;
+    let result;
+    switch(func) {
+      case 'sin': result = Math.sin(num * Math.PI / 180); break;
+      case 'cos': result = Math.cos(num * Math.PI / 180); break;
+      case 'tan': result = Math.tan(num * Math.PI / 180); break;
+      case 'log': result = Math.log10(num); break;
+      case 'ln': result = Math.log(num); break;
+      case 'x^2': result = num ** 2; break;
+      case 'x^3': result = num ** 3; break;
+      case 'sqrt': result = Math.sqrt(num); break;
+      case '!':
+        if (num < 0 || !Number.isInteger(num)) { result = 'Error'; break; }
+        result = 1; for(let i=2;i<=num;i++) result *= i; break;
+      case 'PI': result = Math.PI; break;
+      case 'E': result = Math.E; break;
+      default: return;
+    }
+    currentExpression = result.toString();
+    updateMainDisplay(currentExpression);
+    saveToHistory(`${num} ${func} =`, result); // ✅ Store sci calculation
+    isNewOperation = true;
+  }
+
+  function handleMemory(func) {
+    const num = parseFloat(mainDisplay.value);
+    if (isNaN(num)) return;
+    if (func === 'M+') memory += num;
+    if (func === 'M-') memory -= num;
+    if (func === 'MR') { updateMainDisplay(memory.toString()); isNewOperation = true; }
+    if (func === 'MC') memory = 0;
+  }
+
+  function clearDisplay() {
+    currentExpression = '';
+    isNewOperation = true;
+    historyDisplay.value = '';
+    updateMainDisplay('0');
+  }
+
+  function backspace() {
+    currentExpression = currentExpression.slice(0,-1);
+    if (!currentExpression) clearDisplay();
+    else {
+      updateMainDisplay(currentExpression);
+      historyDisplay.value = currentExpression;
+    }
+  }
+
+  function saveToHistory(expression, result) {
+    history.unshift({ expression, result });
+    localStorage.setItem('calculatorHistory', JSON.stringify(history));
+    updateHistoryPanel();
+  }
+
+  function updateHistoryPanel() {
+    historyList.innerHTML = '';
+    if (!history.length) {
+      historyList.innerHTML = '<li class="empty-history">No calculations done yet.</li>';
+      return;
+    }
+    history.forEach(item => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${item.expression}</span><br><strong>${item.result}</strong>`;
+      li.onclick = () => {
+        currentExpression = item.result.toString();
+        updateMainDisplay(currentExpression);
+        isNewOperation = true;
+      };
+      historyList.appendChild(li);
+    });
+  }
+
+  keypad.addEventListener('click', e => {
+    if (!e.target.classList.contains('btn')) return;
+    const value = e.target.dataset.value;
+    if (e.target.classList.contains('btn-number') || e.target.classList.contains('btn-decimal') || e.target.classList.contains('btn-operator'))
+      handleInput(value);
+    else if (e.target.classList.contains('btn-equals'))
+      calculate();
+    else if (e.target.classList.contains('btn-clear'))
+      clearDisplay();
+    else if (e.target.classList.contains('btn-backspace'))
+      backspace();
+    else if (e.target.classList.contains('btn-sci'))
+      handleScientific(value);
+    else if (e.target.classList.contains('btn-memory'))
+      handleMemory(value);
+  });
+
+  themeBtn.onclick = () => {
+    document.body.classList.toggle('dark-theme');
+    localStorage.setItem('theme', document.body.classList.contains('dark-theme') ? 'dark' : 'light');
+    themeBtn.textContent = document.body.classList.contains('dark-theme') ? '☀️' : '🌙';
+  };
+
+  modeBtn.onclick = () => {
+    isScientificMode = !isScientificMode;
+    scientificKeypad.classList.toggle('hidden', !isScientificMode);
+    modeBtn.textContent = isScientificMode ? 'Basic' : 'Sci';
+  };
+
+  historyBtn.onclick = () => {
+    historyPanel.classList.toggle('show');
+  };
+
+  clearHistoryBtn.onclick = () => {
+    history = [];
+    localStorage.removeItem('calculatorHistory');
+    updateHistoryPanel();
+  };
+
+  if (localStorage.getItem('theme') === 'dark') {
+    document.body.classList.add('dark-theme');
+    themeBtn.textContent = '☀️';
+  }
+
+  init();
+});
+</script>
+</body>
+</html>
